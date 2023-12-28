@@ -1,0 +1,266 @@
+#include <String.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>          
+#include <ArduinoSort.h> 
+#include <Arduino.h>
+
+#define ONE_WIRE_BUS_1 PB3  
+#define ONE_WIRE_BUS_2 PB4  
+#define ONE_WIRE_BUS_3 PB5  
+
+OneWire oneWire1(ONE_WIRE_BUS_1);  
+OneWire oneWire2(ONE_WIRE_BUS_2);  
+OneWire oneWire3(ONE_WIRE_BUS_3);  
+
+DallasTemperature sensors1(&oneWire1);  
+DallasTemperature sensors2(&oneWire2);  
+DallasTemperature sensors3(&oneWire3);  
+
+const int numReadings = 10; // Number of readings to take
+const int threshold = 5;  // Threshold for considering a reading as correct (in cm)
+int initial_status = 0;
+//temp 1
+float temperature;
+float temp_read;
+float temp_sum = 0;
+int temp_count = 0;
+int temp_complete = 0;
+float temp_arr[15];
+//temp 2
+float temperature2;
+float temp_read2;
+float temp_sum2 = 0;
+int temp_count2 = 0;
+int temp_complete2 = 0;
+float temp_arr2[15];
+//temp 3
+float temperature3;
+float temp_read3;
+float temp_sum3 = 0;
+int temp_count3 = 0;
+int temp_complete3 = 0;
+float temp_arr3[15];
+
+void setup() {
+  Serial3.begin(9600);               // the GPRS baud rate
+  Serial.begin(9600);
+  sensors1.begin();
+  sensors2.begin();
+  sensors3.begin();
+  delay(1000);
+}
+void send_Data_gsm(float temp_, float temp2_,float temp3_)
+{
+  if (Serial3.available())
+    Serial.write(Serial3.read());
+  Serial3.println("AT");
+  delay(1000);
+  Serial3.println("AT+CPIN?");
+  delay(1000);
+  Serial3.println("AT+CREG?");
+  delay(1000);
+  Serial3.println("AT+CGATT?");
+  delay(1000);
+  Serial3.println("AT+CIPSHUT");
+  delay(1000);
+  Serial3.println("AT+CIPSTATUS");
+  delay(2000);
+  Serial3.println("AT+CIPMUX=0");
+  delay(2000);
+  ShowSerialData();
+  Serial3.println("AT+CSTT=\"cmnet\"");//start task and setting the APN,
+  delay(1000);
+  ShowSerialData();
+  Serial3.println("AT+CIICR");//bring up wireless connection
+  delay(3000);
+  ShowSerialData();
+  Serial3.println("AT+CIFSR");//get local IP adress
+  delay(2000);
+  ShowSerialData();
+  Serial3.println("AT+CIPSPRT=0");
+  delay(3000);
+  ShowSerialData();
+  Serial3.println("AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",\"80\"");//start up the connection
+  delay(6000);
+  ShowSerialData();
+  Serial3.println("AT+CIPSEND");//begin send data to remote server
+  delay(4000);
+  ShowSerialData();
+  String str = "GET https://api.thingspeak.com/update?api_key=LBD6K6R0PMNVXA68&field1=" + String(temp_) + "&field2=" + String(temp2_) + "&field3=" + String(temp3_);
+  Serial.println(str);
+  Serial3.println(str);//begin send data to remote server
+  delay(4000);
+  ShowSerialData();
+  Serial3.println((char)26);//sending
+  delay(5000);//waitting for reply, important! the time is base on the condition of internet
+  Serial3.println();
+  ShowSerialData();
+  Serial3.println("AT+CIPSHUT");//close the connection
+  delay(100);
+  ShowSerialData();
+}
+
+void ShowSerialData()
+{
+  while (Serial3.available() != 0)
+    Serial.write(Serial3.read());
+  delay(5000);
+}
+void print_array(float* Arr_)
+{
+  for(int i=0;i<11;i++)
+  {
+    Serial.print(Arr_[i]);
+    Serial. print(" ");
+  }
+}
+void get_temp_readings()
+{
+  temp_count = 0;
+  temp_complete = 0;
+  while (temp_complete < 1)
+  {
+    sensors1.requestTemperatures();
+    temp_read = sensors1.getTempCByIndex(0);
+    if (temp_read > 1)
+    {
+      if (temp_count == 10)
+      {
+        Serial.print("Unsorted Temperature Array: ");
+        print_array(temp_arr);
+        sortArray(temp_arr, temp_count+1);
+        Serial.print("Sorted Temperature Array: ");
+        print_array(temp_arr);
+        temperature = temp_arr[6];
+        temp_complete = 1;
+        break;
+      }
+      else
+      {
+        temp_arr[temp_count]= temp_read;
+        temp_count = temp_count + 1;
+        Serial.print("Count - ");
+        Serial.print(temp_count);
+        Serial.print("    Raw Temperature: ");
+        Serial.print(temp_read);
+        Serial.println(" °C");
+        Serial.print("ARRAY DATA : ");
+        Serial.print(temp_arr[temp_count]);
+        Serial.println("");
+      }
+    }
+  }
+  Serial.println("Out of the Temperature Loop  ");
+  Serial.print("  Final Temperature  ");
+  Serial.println(temperature);
+  temp_count = 0;
+  Serial.println("Count reset to Zero");
+}
+void get_temp_readings2()
+{
+  temp_count2 = 0;
+  temp_complete2 = 0;
+  while (temp_complete2 < 1)
+  {
+    sensors2.requestTemperatures();
+    temp_read2 = sensors2.getTempCByIndex(0);
+    if (temp_read2 > 1)
+    {
+      if (temp_count2 == 10)
+      {
+        Serial.print("Unsorted Temperature2 Array: ");
+        print_array(temp_arr2);
+        sortArray(temp_arr2, temp_count2+1);
+        Serial.print("Sorted Temperature2 Array: ");
+        print_array(temp_arr2);
+        temperature2 = temp_arr2[6];
+        temp_complete2 = 1;
+        break;
+      }
+      else
+      {
+        temp_arr2[temp_count2]= temp_read2;
+        temp_count2 = temp_count2 + 1;
+        Serial.print("Count - ");
+        Serial.print(temp_count2);
+        Serial.print("    Raw Temperature2: ");
+        Serial.print(temp_read2);
+        Serial.println(" °C");
+        Serial.print("ARRAY DATA : ");
+        Serial.print(temp_arr2[temp_count2]);
+        Serial.println("");
+      }
+    }
+  }
+  Serial.println("Out of the Temperature2 Loop  ");
+  Serial.print("  Final Temperature2  ");
+  Serial.println(temperature2);
+  temp_count2 = 0;
+  Serial.println("Count reset to Zero");
+}
+void get_temp_readings3()
+{
+  temp_count3 = 0;
+  temp_complete3 = 0;
+  while (temp_complete3 < 1)
+  {
+    sensors3.requestTemperatures();
+    temp_read3 = sensors3.getTempCByIndex(0);
+    if (temp_read3 > 1)
+    {
+      if (temp_count3 == 10)
+      {
+        Serial.print("Unsorted Temperature3 Array: ");
+        print_array(temp_arr3);
+        sortArray(temp_arr3, temp_count3+1);
+        Serial.print("Sorted Temperature3 Array: ");
+        print_array(temp_arr3);
+        temperature3 = temp_arr3[6];
+        temp_complete3 = 1;
+        break;
+      }
+      else
+      {
+        temp_arr3[temp_count3]= temp_read3;
+        temp_count3 = temp_count3 + 1;
+        Serial.print("Count - ");
+        Serial.print(temp_count3);
+        Serial.print("    Raw Temperature3: ");
+        Serial.print(temp_read3);
+        Serial.println(" °C");
+        Serial.print("ARRAY DATA : ");
+        Serial.print(temp_arr3[temp_count3]);
+        Serial.println("");
+      }
+    }
+  }
+  Serial.println("Out of the Temperature Loop  ");
+  Serial.print("  Final Temperature3  ");
+  Serial.println(temperature3);
+  temp_count3 = 0;
+  Serial.println("Count reset to Zero");
+}
+void loop() {
+  if(initial_status == 0)
+  {
+    Serial.println("In Initail Condition");
+    get_temp_readings();
+    get_temp_readings2();
+    get_temp_readings3();
+    send_Data_gsm(temperature, temperature2,temperature3);
+    Serial.println("Sent Data Successfully");
+    initial_status = 1;
+  }
+  if(initial_status == 1)
+  {
+    Serial.print("In Secondary Condition");
+    get_temp_readings();
+    get_temp_readings2();
+    get_temp_readings3();
+    send_Data_gsm(temperature, temperature2,temperature3);
+    
+  }
+  delay(60000);
+  // put your main code here, to run repeatedly:
+
+}
